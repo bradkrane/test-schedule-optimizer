@@ -9,9 +9,9 @@ TESTS = %w[a b c d]
 
 
 class Participant
-    def initialize name, tests = TESTS
+    def initialize name
         @name = name
-        @test_completion = {}; tests.each { |test| @test_completion[test] = false }
+        @test_completion = {}; TESTS.each { |test| @test_completion[test] = false }
         @test_schedule = []
     end
 
@@ -46,6 +46,10 @@ class Participant
     def to_s
         str = @name.to_s + "\t" + @test_completion.to_s + "\n" + @test_schedule.to_s + "\n"
     end
+
+    def reset_tests
+        @test_completion = {}; TESTS.each { |test| @test_completion[test] = false }
+    end
 end
 
 class Histogram
@@ -67,6 +71,8 @@ class Histogram
     end
 
     def to_s; @elements.to_s; end
+
+    def get elm; @elements[elm]; end
 end
 
 
@@ -90,15 +96,22 @@ class Schedule
             self
         end
 
+        def remove_participant
+        end
+
         def assign_test test
             @participants.each { |participant| return nil if participant.has_completed? test }
             @participants.each { |participant| participant.complete test }
             @test = test
         end
 
+        def reset_test
+            @test = nil
+        end
+
         def get_participant_remaining_tests
             tests = []; TESTS.each { |i| tests << i }
-            
+
             @participants.each { |participant| 
                 participant.test_completion.each_pair { |tc,status| tests.delete tc if status }
             }
@@ -165,10 +178,10 @@ class Schedule
             avaialable[Random.new.rand(avaialable.count)]
         end
     
-        def self.assign_participants_to_slots slots, participants, options = { generator: "random-dense" }
+        def self.assign_participants_to_slots slots, participants, options = { generator: "random-75" }
             case options[:generator]
             when "random-dense"
-                raise ArgumentError.new("Can't even") if 2.0 * slots.count - participants.count * 4.0 < 0
+                raise ArgumentError.new("Not enought time slots for participants and test course.") if 2.0 * slots.count - participants.count * TEST.count < 0
 
                 begin
                     slots.each { |slot|
@@ -184,10 +197,22 @@ class Schedule
                 rescue ArgumentError => exception
                                        
                 end
-               
-                # sanity check
 
-            when ""
+            when "random-75"
+                rand = Random.new
+
+                slots.each { |slot|
+                    
+                    avaialable_participant = get_random_available_participant(participants)
+                    break if avaialable_participant == nil
+                    avaialable_participant.assign_next_slot slot
+                    
+                    next if rand.rand(100) <= 75
+
+                    avaialable_participant = get_random_available_other(slot.participants.first, participants)
+                    break if avaialable_participant == nil
+                    avaialable_participant.assign_next_slot slot
+                }
             end
         end
 
@@ -208,63 +233,84 @@ class Schedule
         TestDataGenerator::assign_participants_to_slots @slots, @participants
         print "UNASSIGNED" + TestDataGenerator::set_of_participants_not_fully_assigned(@participants).to_s + "\n" if TestDataGenerator::set_of_participants_not_fully_assigned(@participants) != []
 
-        assign_tests_to_slots
+        
     end
 
     
     def assign_tests_to_slots options = { generator: "simple-pass" }
+        
+
         case options[:generator]
         when "simple-pass"
             i = 0
+            rand = Random.new
             @slots.each { |slot|
                 slot.assign_test TESTS[i % TESTS.count]
-                i += 1
+                i = rand.rand(999999)
             }
 
-            print "FIRST PASS\n"
+            #print "FIRST PASS\n"
             hist = Histogram.new
-            @slots.each { |slot| hist.add slot.test; print slot.to_s }
-            print hist.to_s + "\n"
+            @slots.each { |slot| hist.add slot.test; #print slot.to_s 
+            }
+            #print hist.to_s + "\n"
+            @hist0 = hist
 
 
-            unassigned_slots = @slots.select { |slot| hist.add(slot.test); slot.test == nil }
-            p unassigned_slots.count
+            #print "SECOND PASS\n"
+            test_unass_slots = @slots.select { |slot| hist.add(slot.test); slot.test == nil }
+            test_unass_slots.each { |test_unass_slot|
+                remaining = test_unass_slot.get_participant_remaining_tests
 
-            p hist.lowest
+                if remaining == nil
+                    # it is not possible for this pair to complete all and must reassign one
+                    #print "Conflict: #{test_unass_slot}"
+                    next
+                end
 
-            unassigned_slots.each { |uns|
-                remaining = uns.get_participant_remaining_tests
+                if test_unass_slot.assign_test(hist.lowest) == nil
+                    test_unass_slot.assign_test remaining.shuffle.first
+                end
+            }
+            
+#            @slots.each { |slot| print slot.to_s }
+            hist = Histogram.new
+            test_unass_slots = @slots.select { |slot| hist.add(slot.test); slot.test == nil }
+            #p hist.inspect
+            @hist1 = hist
+            
+            test_unass_slots.each { |test_unass_slot|
+                remaining = test_unass_slot.get_participant_remaining_tests
 
-                next if remaining == nil
+                if remaining == nil
+                    # it is not possible for this pair to complete all and must reassign one
+                    #print "Conflict: #{test_unass_slot}"
+                    next
+                end
 
-                if uns.assign_test(hist.lowest) == nil
-                    uns.assign_test remaining.shuffle.first
+
+
+                if test_unass_slot.assign_test(hist.lowest) == nil
+                    test_unass_slot.assign_test remaining.shuffle.first
                 end
             }
 
-            print "SECOND PASS\n"
-            @slots.each { |slot| print slot.to_s }
+            #print test_unass_slots.inspect
 
-
+            #print "LAST PASS\n"
+#            @slots.each { |slot| print slot.to_s }
             hist = Histogram.new
-            unassigned_slots = @slots.select { |slot| hist.add(slot.test); slot.test == nil }
-
-            p hist.inspect
-            p hist.lowest
-
-            unassigned_slots.each { |uns|
-                remaining = uns.get_participant_remaining_tests
-
-                next if remaining == nil
-
-                if uns.assign_test(hist.lowest) == nil
-                    uns.assign_test remaining.shuffle.first
-                end
-            }
-
-            print "SECOND PASS\n"
-            @slots.each { |slot| print slot.to_s }
+            unass_slots = @slots.select { |slot| hist.add(slot.test); slot.test == nil }
+            #p hist.inspect
+            @hist2 = hist
         end
+
+
+    end
+
+    def reset_tests
+        @slots.each { |slot| slot.reset_test }
+        @participants.each { |participants| participants.reset_tests }
     end
 
    
@@ -274,8 +320,23 @@ class Schedule
         #@participants.each { |participant| print participant.to_s }
     end
 
+    attr_reader :hist0, :hist1, :hist2
 end
 
 s = Schedule.new Date.today - 1
 
+min = 99999999999999999999
 
+start = Time.now
+while Time.now - start < 300
+    s.assign_tests_to_slots
+    s.reset_tests
+    if s.hist2.get(nil) < min
+        min = s.hist2.get(nil) 
+    end
+
+    #print "Min: #{min}\n"
+end
+
+
+print "Min: #{min}\n"
