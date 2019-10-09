@@ -178,9 +178,9 @@ class Schedule
             avaialable[Random.new.rand(avaialable.count)]
         end
     
-        def self.assign_participants_to_slots slots, participants, options = { generator: "random-75" }
+        def self.assign_participants_to_slots slots, participants, options = { generator: "random-50" }
             case options[:generator]
-            when "random-dense"
+            when "random-100"
                 raise ArgumentError.new("Not enought time slots for participants and test course.") if 2.0 * slots.count - participants.count * TEST.count < 0
 
                 begin
@@ -189,6 +189,8 @@ class Schedule
                         break if avaialable_participant == nil
                         avaialable_participant.assign_next_slot slot
                         
+                        next if rand.rand(100) >= 100
+
                         avaialable_participant = get_random_available_other(slot.participants.first, participants)
                         break if avaialable_participant == nil
                         avaialable_participant.assign_next_slot slot
@@ -207,7 +209,22 @@ class Schedule
                     break if avaialable_participant == nil
                     avaialable_participant.assign_next_slot slot
                     
-                    next if rand.rand(100) <= 75
+                    next if rand.rand(100) >= 75
+
+                    avaialable_participant = get_random_available_other(slot.participants.first, participants)
+                    break if avaialable_participant == nil
+                    avaialable_participant.assign_next_slot slot
+                }
+            when "random-50"
+                rand = Random.new
+
+                slots.each { |slot|
+                    
+                    avaialable_participant = get_random_available_participant(participants)
+                    break if avaialable_participant == nil
+                    avaialable_participant.assign_next_slot slot
+                    
+                    next if rand.rand(100) >= 50
 
                     avaialable_participant = get_random_available_other(slot.participants.first, participants)
                     break if avaialable_participant == nil
@@ -224,11 +241,11 @@ class Schedule
         end
     end
 
-    def initialize start_date, weeks = 4, test_data = true
+    def initialize start_date, weeks = 8, test_data = true
         raise ArgumentError.new "Test Only" if !test_data
 
         @slots = TestDataGenerator::experimentSlots start_date, weeks
-        @participants = TestDataGenerator::participants 55
+        @participants = TestDataGenerator::participants 50
 
         TestDataGenerator::assign_participants_to_slots @slots, @participants
         print "UNASSIGNED" + TestDataGenerator::set_of_participants_not_fully_assigned(@participants).to_s + "\n" if TestDataGenerator::set_of_participants_not_fully_assigned(@participants) != []
@@ -236,12 +253,13 @@ class Schedule
         
     end
 
-    
-    def assign_tests_to_slots options = { generator: "simple-pass" }
-        
+    def initialize2 past_participant_test, future_schedule
+    end
 
+    
+    def assign_tests_to_slots options = { generator: "simple-random" }
         case options[:generator]
-        when "simple-pass"
+        when "simple-random"
             i = 0
             rand = Random.new
             @slots.each { |slot|
@@ -323,20 +341,46 @@ class Schedule
     attr_reader :hist0, :hist1, :hist2
 end
 
+
+
 s = Schedule.new Date.today - 1
 
 min = 99999999999999999999
 
+min0 = 99999999999999999999
+min1 = 99999999999999999999
+
+
 start = Time.now
+print "Start: #{start}\n"
+
 while Time.now - start < 300
     s.assign_tests_to_slots
+    
+    #p s
+    #exit    
+    
     s.reset_tests
+
+    if s.hist0.get(nil) < min
+        min0 = s.hist0.get(nil) 
+    end
+    if s.hist1.get(nil) < min
+        min1 = s.hist1.get(nil) 
+    end
     if s.hist2.get(nil) < min
         min = s.hist2.get(nil) 
     end
+
+
+    
 
     #print "Min: #{min}\n"
 end
 
 
 print "Min: #{min}\n"
+
+print "Min0: #{min0}\n"
+print "Min1: #{min1}\n"
+print s.hist2
