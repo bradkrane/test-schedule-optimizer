@@ -1,1 +1,8 @@
 README
+
+Install Ruby >= 2.0
+Install gems: gem install google-api-client
+Clone repo to local machine.
+Run script: ruby optimize.rb
+
+TODO: Pull out sheet and ranges value to separate 'conf' file.
