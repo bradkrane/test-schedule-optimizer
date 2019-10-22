@@ -26,6 +26,7 @@ class Array
   end
 end
 
+
 class ExperimentGSheetsSchedule
   def sheet_range sheet, range
     "#{sheet}!#{range}"
@@ -571,109 +572,58 @@ class Schedule
         complete
     end
 
-    def earliest_unassigned_slot
-        unassigned = @slots.select { |slot| slot.test.nil? }
-        date = Date.today + 10000
-        unassigned.each { |slot| date = slot.date if slot.date < date }
-        date
-    end
-
-    def optimizing_function
-
+    # the lower the better
+    def utility_value
+        score = 0
+        last_scheduled_day = @slots.max_by { |s| s.date }
+        unscheduled_tests = @attended_slots.select { |as| as.test.nil? }
+        unscheduled_tests.each { |unscheduled| score += (last_scheduled_day.date - unscheduled.date).to_i * unscheduled.participants.count }
+        score
     end
 
     attr_reader :hist0, :hist1, :hist2, :attended_slots, :participants, :slots
 end
 
+config = YAML::load_file(File.join(__dir__, 'config.yaml'))
 
 s = Schedule.new false
-s.load_gsheet ['D5:I24', 'L5:Q24', 'T5:Y24', 'AB5:AF24', 'AI5:AN24', 'AQ5:AT24'], "1Rpj1jsejJmiKe4D64HNL4KnYlIiug-KiZWEHBuwKNtM"
+s.load_gsheet config[:ranges], config[:gsheet_id]
+
+print "Loaded data:"
 print s.slots_tsv + "\n"
 print s.participants_tsv + "\n"
 
 # this bit tries over and over function out
-min0 = 99999999999999999999
-min1 = 99999999999999999999
-min2 = 99999999999999999999
-
-hmin0 = nil
-hmin1 = nil
-hmin2 = nil
-
-completed0 = 0
-completed1 = 0
-completed2 = 0
-
-date0 = Date.today - 10000
-date1 = Date.today - 10000
-date2 = Date.today - 10000
-
+min = 999999999
 num_mins = 0
 num_rolls = 0
 
 start = Time.now
 print "Start: #{start}\n"
 
-while Time.now - start < 5
+
+while Time.now - start < 60
     s.assign_tests_to_slots
+    utility = s.utility_value
 
-    if !s.hist0.get(nil).nil? && s.hist0.get(nil) < min0
-        min0 = s.hist0.get(nil) 
-        hmin0 = s.hist0
-    end
-    #p s.inspect
-    if !s.hist1.get(nil).nil?
-        if s.hist1.get(nil) < min1
-            hmin1 = s.hist1
+    num_mins += 1 if utility <= min
+    if utility < min
+        min = utility
+        print "Found min: #{min}\n"
+        STDOUT.flush
 
-            complete = 0
-            s.participants.each { |p| complete += 1 if p.has_all_slots? }
-            if complete >= completed1 && date1 <= s.earliest_unassigned_slot
-                date1 = s.earliest_unassigned_slot
-                min1 = s.hist1.get(nil)
-                completed1 = complete
-
-                print "Complete: #{complete} of #{s.participants.count}\n"
-                print "Min: #{min1}\n"
-                print s.slots_tsv + "\n"
-                print s.participants_tsv + "\n"
-            end
-        end
-    end
-    #p s.hist2.get(nil)
-    #p min2
-    #p s.hist2.get(nil) < min2 if !s.hist2.get(nil).nil?
-    if !s.hist2.get(nil).nil?
-        if s.hist2.get(nil) < min2 
-            hmin2 = s.hist2
-
-            complete = 0
-            s.participants.each { |p| complete += 1 if p.has_all_slots? }
-            if complete >= completed2 && date2 <= s.earliest_unassigned_slot
-                date2 = s.earliest_unassigned_slot
-                min2 = s.hist2.get(nil)
-                completed2 = complete
-                num_mins += 1
-
-                print "Complete: #{complete} of #{s.participants.count}\n"
-                print "Min: #{min2}\n"
-                print s.slots_tsv + "\n"
-                print s.participants_tsv + "\n"
-            end
-        end
+        best = { slots: s.slots_tsv, participants: s.participants_tsv }
     end
 
     s.reset_tests
 
-    #print "Min: #{min}\n"
     num_rolls += 1
 end
 
-print "Min0: #{min0}\n"
-print "Min1: #{min1}\n"
-print "Min2: #{min2}\n"
-print s.hist2
-print hmin0
+print "#{best[:slots]}\n\n"
+print "#{best[:participants]}\n\n"
+
+print "Min: #{min}\n"
 print "Num Rolls: #{num_rolls}\n"
 print "Num Mins: #{num_mins}\n"
 
