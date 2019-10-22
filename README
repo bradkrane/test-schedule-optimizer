@@ -1,3 +1,20 @@
+Installation Instructions
+
+Install Ruby >= 2.0
+Install gems: gem install google-api-client
+Clone repo to local machine.
+Modify config YAML to match your schedule gsheet values.
+- gsheet_id can be found in the sheet URL.
+
+
+Usage Instructions
+
+1. Ensure Update Test Schedule Sheet is upto date.
+2. Run script via command line: ruby optimize.rb
+    - follow instructions for first use to establish script API access.
+3. Profit
+
+
 Test Schedule Optimizer - finds optimal test schedules for full coverage
 Copyright (C) 2019 Brad Krane
 
@@ -13,16 +30,3 @@ Copyright (C) 2019 Brad Krane
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-    
-Installation Instructions
-
-Install Ruby >= 2.0
-Install gems: gem install google-api-client
-Clone repo to local machine.
-Modify config YAML to match your schedule gsheet values.
-- gsheet_id can be found in the sheet URL.
-
-Usage Instructions
-
-Run script: ruby optimize.rb
-- follow instructions for first use to establish script API access.
