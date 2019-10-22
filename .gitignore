@@ -3,3 +3,6 @@
 token.yaml
 *.xlsx
 *.json
+*.ods
+*.xlsx
+*.tsv
