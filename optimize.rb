@@ -12,9 +12,9 @@ class ExperimentGSheetsSchedule
     "#{sheet}!#{range}"
   end
 
-  def initialize sheet_guid, schedule_ranges, schedule_sheet = 'Sheet1'
+  def initialize sheet_guid, schedule_ranges, schedule_sheet
     @OOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
-    @APPLICATION_NAME = "Google Sheets API Ruby Quickstart".freeze
+    @APPLICATION_NAME = "Test Schedule Optimizer".freeze
     @CREDENTIALS_PATH = "credentials.json".freeze
     # The file token.yaml stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -538,7 +538,7 @@ end
 config = YAML::load_file(File.join(__dir__, 'config.yaml'))
 
 s = Schedule.new false
-s.load_gsheet config[:ranges], config[:gsheet_id]
+s.load_gsheet config[:sheet], config[:ranges], config[:gsheet_id]
 
 print "Loaded data:"
 print s.slots_tsv + "\n"
