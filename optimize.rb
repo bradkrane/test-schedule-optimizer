@@ -6,41 +6,21 @@ require "googleauth"
 require "googleauth/stores/file_token_store"
 require "fileutils"
 
-# add a new method to array to transpose sparse matricies
-class Array
-  def transpose_uneven
-    array = self
-    row_length = array.first.length
-
-    array.each { |row|
-      if row.length < row_length
-        while row.length < row_length
-          row << nil
-        end
-      elsif row.length > row_length
-        raise ArgumentError.new "First row must be longest."
-      end
-    }
-
-    array.transpose
-  end
-end
-
-
+# The calss below is adapted from: https://developers.google.com/sheets/api/quickstart/ruby
 class ExperimentGSheetsSchedule
   def sheet_range sheet, range
     "#{sheet}!#{range}"
   end
 
   def initialize sheet_guid, schedule_ranges, schedule_sheet = 'Sheet1'
-    @oOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
-    @aPPLICATION_NAME = "Google Sheets API Ruby Quickstart".freeze
-    @cREDENTIALS_PATH = "credentials.json".freeze
+    @OOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
+    @APPLICATION_NAME = "Google Sheets API Ruby Quickstart".freeze
+    @CREDENTIALS_PATH = "credentials.json".freeze
     # The file token.yaml stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    @tOKEN_PATH = "token.yaml".freeze
-    @sCOPE = Google::Apis::SheetsV4::AUTH_SPREADSHEETS_READONLY
+    @TOKEN_PATH = "token.yaml".freeze
+    @SCOPE = Google::Apis::SheetsV4::AUTH_SPREADSHEETS_READONLY
 
     ##
     # Ensure valid credentials, either by restoring from the saved credentials
@@ -49,13 +29,13 @@ class ExperimentGSheetsSchedule
     #
     # @return [Google::Auth::UserRefreshCredentials] OAuth2 credentials
     def authorize
-      client_id = Google::Auth::ClientId.from_file @cREDENTIALS_PATH
-      token_store = Google::Auth::Stores::FileTokenStore.new file: @tOKEN_PATH
-      authorizer = Google::Auth::UserAuthorizer.new client_id, @sCOPE, token_store
+      client_id = Google::Auth::ClientId.from_file @CREDENTIALS_PATH
+      token_store = Google::Auth::Stores::FileTokenStore.new file: @TOKEN_PATH
+      authorizer = Google::Auth::UserAuthorizer.new client_id, @SCOPE, token_store
       user_id = "default"
       credentials = authorizer.get_credentials user_id
       if credentials.nil?
-        url = authorizer.get_authorization_url base_url: @oOB_URI
+        url = authorizer.get_authorization_url base_url: @OOB_URI
         puts "Open the following URL in the browser and enter the " \
             "resulting code after authorization:\n" + url
         code = gets
@@ -68,7 +48,7 @@ class ExperimentGSheetsSchedule
 
     # Initialize the API
     service = Google::Apis::SheetsV4::SheetsService.new
-    service.client_options.application_name = @aPPLICATION_NAME
+    service.client_options.application_name = @APPLICATION_NAME
     service.authorization = authorize
 
     # aaaahhhhh dep 
@@ -83,34 +63,25 @@ class ExperimentGSheetsSchedule
   attr_reader :weekly_schedules
 end
 
-class Histogram
-    def initialize 
-        @elements = {}
-    end
-
-    def add elm
-        if !@elements.key? elm
-            @elements[elm] = 1
-        else
-            @elements[elm] += 1
+# add a new method to array to transpose sparse matricies
+class Array
+    def transpose_uneven
+      array = self
+      row_length = array.first.length
+  
+      array.each { |row|
+        if row.length < row_length
+          while row.length < row_length
+            row << nil
+          end
+        elsif row.length > row_length
+          raise ArgumentError.new "First row must be longest."
         end
+      }
+  
+      array.transpose
     end
-
-    def lowest
-        values = @elements.sort { |elm_a, elm_b| elm_a.last <=> elm_b.last }
-        values.first.first
-    end
-
-    def to_s; @elements.to_s; end
-
-    def get elm; @elements[elm]; end
-
-    def average
-        sum = 0
-        @elements.each { |elm| sum += elm }
-        sum / @elements.count.to_f
-    end
-end
+  end
 
 require 'time'
 TESTS = %w[NRU RU NRN RN]
@@ -490,12 +461,6 @@ class Schedule
                 i = rand.rand(999999)
             }
 
-            #print "FIRST PASS\n"
-            hist = Histogram.new
-            @attended_slots.each { |slot| hist.add slot.test; }
-            #print hist.to_s + "\n"
-            @hist0 = hist
-
             #print "SECOND PASS\n"
             test_unass_slots = @attended_slots.select { |slot| hist.add(slot.test); slot.test == nil }
             test_unass_slots.each { |test_unass_slot|
@@ -512,12 +477,6 @@ class Schedule
                 end
             }
 
-            #@slots.each { |slot| print slot.to_s }
-            hist = Histogram.new
-            test_unass_slots = @attended_slots.select { |slot| hist.add(slot.test); slot.test == nil }
-            #p hist.inspect
-            @hist1 = hist
-
             test_unass_slots.each { |test_unass_slot|
                 remaining = test_unass_slot.get_participant_remaining_tests
 
@@ -531,14 +490,6 @@ class Schedule
                     test_unass_slot.assign_test remaining.shuffle.first
                 end
             }
-
-            #print test_unass_slots.inspect
-            #print "LAST PASS\n"
-            #@slots.each { |slot| print slot.to_s }
-            hist = Histogram.new
-            unass_slots = @attended_slots.select { |slot| hist.add(slot.test); slot.test == nil }
-            #p hist.inspect
-            @hist2 = hist
         end
     end
 
