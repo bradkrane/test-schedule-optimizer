@@ -14,14 +14,15 @@ Copyright (C) 2019 Brad Krane
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
     
-
-
+Installation Instructions
 
 Install Ruby >= 2.0
 Install gems: gem install google-api-client
 Clone repo to local machine.
+Modify config YAML to match your schedule gsheet values.
+- gsheet_id can be found in the sheet URL.
+
+Usage Instructions
+
 Run script: ruby optimize.rb
-
-TODO: Pull out sheet and ranges value to separate 'conf' file.
-
-    
+- follow instructions for first use to establish script API access.
