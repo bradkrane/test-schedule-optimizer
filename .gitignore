@@ -6,3 +6,4 @@ token.yaml
 *.ods
 *.xlsx
 *.tsv
+config.yaml
