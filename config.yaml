@@ -1,10 +1,11 @@
 ---
-:gsheet_id: 1Rpj1jsejJmiKe4D64HNL4KnYlIiug-KiZWEHBuwKNtM
+:gsheet_id: 1w5txDRbZTwJMA2BDC5-CSQWKXmfu83RJUHdkDwxrb5g
 :sheet: "Sheet1"
 :ranges:
 - D5:I24
 - L5:Q24
-- T5:Y24
-- AB5:AF24
-- AI5:AN24
-- AQ5:AT24
+:test_indicators:
+- T1
+- T2
+- T3
+- T4

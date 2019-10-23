@@ -12,7 +12,7 @@ class ExperimentGSheetsSchedule
     "#{sheet}!#{range}"
   end
 
-  def initialize sheet_guid, schedule_ranges, schedule_sheet
+  def initialize gsheet_guid, schedule_sheet, schedule_ranges
     @OOB_URI = "urn:ietf:wg:oauth:2.0:oob".freeze
     @APPLICATION_NAME = "Test Schedule Optimizer".freeze
     @CREDENTIALS_PATH = "credentials.json".freeze
@@ -43,7 +43,7 @@ class ExperimentGSheetsSchedule
       end
       credentials
     end
-    #4/sQFML9-V4IjUVUDdObX7vkAktVaKwfMoc9YuVNC-YVuhSi0nXVJvzMg
+
     @weekly_schedules = []
 
     # Initialize the API
@@ -55,7 +55,7 @@ class ExperimentGSheetsSchedule
     schedule_ranges.each { |range| 
       range = sheet_range schedule_sheet, range
 
-      @weekly_schedules << (week_schedule = service.get_spreadsheet_values sheet_guid, range)
+      @weekly_schedules << (week_schedule = service.get_spreadsheet_values gsheet_guid, range)
       raise ArgumentError.new "No data found." if week_schedule == nil
     }
   end
@@ -84,7 +84,10 @@ class Array
   end
 
 require 'time'
-TESTS = %w[NRU RU NRN RN]
+
+config = YAML::load_file(File.join(__dir__, 'config.yaml'))
+
+TESTS = config[:test_indicators]
 
 class Participant
     def initialize name
@@ -200,7 +203,7 @@ class Schedule
         end
 
         def to_s
-            str = "#{@date}\t#{@time}\t#{@test}\t"
+            str = "#{@date}\t#{@time.strftime('%T')}\t#{@test}\t"
             @participants.each { |participant| str += "#{participant.name}\t"}
             str[0..-2]
         end
@@ -345,8 +348,8 @@ class Schedule
         slot
     end
 
-    def load_gsheet ranges, spreadsheet_id
-        gsheet_schedule = ExperimentGSheetsSchedule.new spreadsheet_id, ranges
+    def load_gsheet spreadsheet_id, sheet, ranges
+        gsheet_schedule = ExperimentGSheetsSchedule.new spreadsheet_id, sheet, ranges
         raise ArgumentError.new "No data found." if gsheet_schedule == nil
 
         print "Ranges Loaded: #{ranges}\n"
@@ -462,7 +465,7 @@ class Schedule
             }
 
             #print "SECOND PASS\n"
-            test_unass_slots = @attended_slots.select { |slot| hist.add(slot.test); slot.test == nil }
+            test_unass_slots = @attended_slots.select { |slot| slot.test == nil }
             test_unass_slots.each { |test_unass_slot|
                 remaining = test_unass_slot.get_participant_remaining_tests
 
@@ -472,9 +475,7 @@ class Schedule
                     next
                 end
 
-                if test_unass_slot.assign_test(hist.lowest) == nil
-                    test_unass_slot.assign_test remaining.shuffle.first
-                end
+                test_unass_slot.assign_test remaining.shuffle.first
             }
 
             test_unass_slots.each { |test_unass_slot|
@@ -486,9 +487,7 @@ class Schedule
                     next
                 end
 
-                if test_unass_slot.assign_test(hist.lowest) == nil
-                    test_unass_slot.assign_test remaining.shuffle.first
-                end
+                test_unass_slot.assign_test remaining.shuffle.first
             }
         end
     end
@@ -535,10 +534,10 @@ class Schedule
     attr_reader :hist0, :hist1, :hist2, :attended_slots, :participants, :slots
 end
 
-config = YAML::load_file(File.join(__dir__, 'config.yaml'))
+
 
 s = Schedule.new false
-s.load_gsheet config[:sheet], config[:ranges], config[:gsheet_id]
+s.load_gsheet config[:gsheet_id], config[:sheet], config[:ranges]
 
 print "Loaded data:"
 print s.slots_tsv + "\n"
@@ -552,8 +551,7 @@ num_rolls = 0
 start = Time.now
 print "Start: #{start}\n"
 
-
-while Time.now - start < 60
+while Time.now - start < 10
     s.assign_tests_to_slots
     utility = s.utility_value
 
@@ -577,14 +575,3 @@ print "#{best[:participants]}\n\n"
 print "Min: #{min}\n"
 print "Num Rolls: #{num_rolls}\n"
 print "Num Mins: #{num_mins}\n"
-
-
-
-
-
-
-
-
-
-
-
